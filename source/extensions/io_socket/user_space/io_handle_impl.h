@@ -118,7 +118,12 @@ public:
       user_file_event_->activateIfEnabled(
           Event::FileReadyType::Read |
           // Closed ready type is defined as `end of stream`
-          (receive_data_end_stream_ ? Event::FileReadyType::Closed : 0));
+          (receive_data_end_stream_ ? Event::FileReadyType::Closed : 0) |
+          // When the peer is destroyed (write_shutdown_), also activate Write
+          // so that connections in DelayedCloseState::CloseAfterFlush discover
+          // the dead peer via write() returning SOCKET_ERROR_INVAL. This mimics
+          // POLLHUP on real TCP sockets.
+          (write_shutdown_ ? Event::FileReadyType::Write : 0));
     }
   }
   void onPeerDestroy() override {
@@ -133,6 +138,14 @@ public:
   bool isWritable() const override { return !pending_received_data_.highWatermarkTriggered(); }
   bool isPeerShutDownWrite() const override { return receive_data_end_stream_; }
   bool isPeerWritable() const override {
+    // When the write side is shut down (peer destroyed or explicit SHUT_WR),
+    // report as "writable" so that a Write event fires and the caller
+    // discovers the error via write() returning SOCKET_ERROR_INVAL. This
+    // mimics POLLHUP behavior on real TCP sockets where a dead peer makes
+    // the fd writable and the write returns EPIPE.
+    if (write_shutdown_) {
+      return true;
+    }
     return peer_handle_ != nullptr && !peer_handle_->isPeerShutDownWrite() &&
            peer_handle_->isWritable();
   }

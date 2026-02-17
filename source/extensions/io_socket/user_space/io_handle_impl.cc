@@ -71,10 +71,15 @@ Api::IoCallUint64Result IoHandleImpl::close() {
     if (peer_handle_) {
       ENVOY_LOG(trace, "socket {} close before peer {} closes.", static_cast<void*>(this),
                 static_cast<void*>(peer_handle_));
+      // Notify the peer that we no longer accept data. shutdown(RD).
+      // This must happen before setWriteEnd() so that write_shutdown_ is true
+      // when setNewDataAvailable() fires, allowing it to also schedule a Write
+      // event. This ensures connections in DelayedCloseState::CloseAfterFlush
+      // (e.g. from TCP proxy's close(FlushWrite) with half-close) get a Write
+      // event that lets them discover the dead peer via write() → INVAL.
+      peer_handle_->onPeerDestroy();
       // Notify the peer we won't write more data. shutdown(WRITE).
       peer_handle_->setWriteEnd();
-      // Notify the peer that we no longer accept data. shutdown(RD).
-      peer_handle_->onPeerDestroy();
       peer_handle_ = nullptr;
     } else {
       ENVOY_LOG(trace, "socket {} close after peer closed.", static_cast<void*>(this));
