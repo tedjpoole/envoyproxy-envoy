@@ -371,6 +371,49 @@ TEST(SSLTest, test_SSL_CTX_set_strict_cipher_list) {
   ASSERT_EQ(0, SSL_CTX_set_strict_cipher_list(ctx.get(), "rubbish:garbage"));
 }
 
+
+// Check that SSL_CTX_set_strict_cipher_list() accepts BoringSSL's Equal
+// Preference Group syntax (the []| characters).
+//
+// Note that BoringSSL retains the extra Equal Preference Group information, as
+// represented by the []| characters, but in the OpenSSL case, we strip those
+// characters, and just retain the list of ciphers. We accept that this is a
+// difference, so we don't check for that. However, we do check that
+// subsequently calling SSL_CTX_get_ciphers() will return the same list of
+// ciphers in the same order.
+//
+// Also note that the BoringSSL version of SSL_CTX_get_ciphers() doesn't return
+// TLS 1.3 ciphers, but the OpenSSL version does. Therefore, this also acts as a
+// test for that.
+TEST(SSLTest, test_SSL_CTX_set_strict_cipher_list_equal_preference_groups) {
+  bssl::UniquePtr<SSL_CTX> ctx{SSL_CTX_new(TLS_server_method())};
+
+  const std::string input =
+    "[ECDHE-ECDSA-AES128-GCM-SHA256|ECDHE-ECDSA-CHACHA20-POLY1305]:"
+    "[ECDHE-RSA-AES128-GCM-SHA256|ECDHE-RSA-CHACHA20-POLY1305]:"
+    "ECDHE-ECDSA-AES256-GCM-SHA384:"
+    "ECDHE-RSA-AES256-GCM-SHA384:";
+
+  ASSERT_EQ(1, SSL_CTX_set_strict_cipher_list(ctx.get(), input.c_str()));
+
+  // We should get back a stack of 6 ciphers
+  STACK_OF(SSL_CIPHER)* ciphers{SSL_CTX_get_ciphers(ctx.get())};
+  ASSERT_NE(nullptr, ciphers);
+  ASSERT_EQ(6, sk_SSL_CIPHER_num(ciphers));
+
+  // Check we get the same ciphers back out in the same order.
+  std::string output;
+  for (const SSL_CIPHER* cipher : ciphers) {
+    output += (output.size() ? ":" : "");
+    output += SSL_CIPHER_get_name(cipher);
+  }
+
+  ASSERT_STREQ("ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-CHACHA20-POLY1305:"
+               "ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-CHACHA20-POLY1305:"
+               "ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384",
+               output.c_str());
+}
+
 TEST(SSLTest, test_SSL_CTX_set_verify_algorithm_prefs) {
   bssl::UniquePtr<SSL_CTX> ctx{SSL_CTX_new(TLS_server_method())};
 
