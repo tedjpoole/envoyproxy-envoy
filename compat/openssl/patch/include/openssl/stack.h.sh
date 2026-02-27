@@ -10,7 +10,7 @@ uncomment.sh "$1" --comment -h \
   --uncomment-macro DEFINE_STACK_OF \
   --uncomment-macro DEFINE_CONST_STACK_OF \
   --uncomment-regex 'template <typename Stack>'\
-  --uncomment-regex 'namespace internal {' 'template <typename T>' 'struct StackTraits \{\};' '}' \
+  --uncomment-regex 'namespace internal {' 'template <typename T>' 'struct StackTraits {};' '}' \
   --uncomment-macro BORINGSSL_DEFINE_STACK_TRAITS \
   --uncomment-macro BORINGSSL_DEFINE_STACK_OF_IMPL \
   --uncomment-struct DeleterImpl \
@@ -29,6 +29,7 @@ uncomment.sh "$1" --comment -h \
   --uncomment-typedef OPENSSL_sk_call_free_func \
   --uncomment-typedef OPENSSL_sk_call_copy_func \
   --uncomment-typedef OPENSSL_sk_call_cmp_func \
+  --uncomment-typedef OPENSSL_sk_call_delete_if_func \
   --uncomment-typedef OPENSSL_sk_delete_if_func \
   --uncomment-func-decl OPENSSL_sk_deep_copy \
   --uncomment-func-decl OPENSSL_sk_num \
@@ -41,6 +42,7 @@ uncomment.sh "$1" --comment -h \
   --uncomment-func-decl OPENSSL_sk_free \
   --uncomment-func-decl OPENSSL_sk_delete \
   --uncomment-func-decl OPENSSL_sk_delete_ptr \
+  --uncomment-func-decl OPENSSL_sk_delete_if \
   --uncomment-func-decl OPENSSL_sk_new \
   --uncomment-func-decl OPENSSL_sk_insert \
   --uncomment-func-decl OPENSSL_sk_is_sorted \

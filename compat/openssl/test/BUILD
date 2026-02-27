@@ -19,7 +19,7 @@ patched_bssl_filegroup(
         "crypto/pkcs8/pkcs12_test.cc",
         "crypto/rand/rand_test.cc",
         "crypto/rsa/rsa_test.cc",
-        #"crypto/stack/stack_test.cc",
+        "crypto/stack/stack_test.cc",
         "crypto/test/file_test.cc",
         "crypto/test/file_test.h",
         "crypto/test/file_test_gtest.cc",

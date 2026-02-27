@@ -31,6 +31,9 @@ _STACK *OPENSSL_sk_deep_copy(const _STACK *sk,
                                     OPENSSL_sk_copy_func copy_func,
                                     OPENSSL_sk_call_free_func call_free_func,
                                     OPENSSL_sk_free_func free_func) {
+  if (sk == NULL) {
+    return NULL; // This mimics BoringSSL
+  }
   return ossl.ossl_OPENSSL_sk_deep_copy(sk, (ossl_OPENSSL_sk_copyfunc)copy_func, free_func);
 }
 
@@ -70,6 +73,47 @@ void *OPENSSL_sk_delete_ptr(_STACK *sk, const void *p) {
 }
 
 /*
+ * This is a full implementation because OpenSSL doesn't have an equivalent
+ */
+void OPENSSL_sk_delete_if(OPENSSL_STACK *sk,
+                          OPENSSL_sk_call_delete_if_func call_func,
+                          OPENSSL_sk_delete_if_func func, void *data) {
+  if (sk == NULL) {
+    return;
+  }
+
+  // Conceptually, deleting elements does not disturb the order of the remaining
+  // elements. However, in OpenSSL, any type of modification clears the stack's
+  // sorted status, even though in this case we know the remaining elements are
+  // still in sorted order. Therefore, we need to remember if the stack was
+  // initially sorted, so we can restore it's sorted state once we've finished
+  // deleting elements.
+  int was_sorted = ossl.ossl_OPENSSL_sk_is_sorted(sk);
+
+  int old_size = ossl.ossl_OPENSSL_sk_num(sk);
+  int new_size = 0; // New size after deletions
+
+  for (int i = 0, max = ossl.ossl_OPENSSL_sk_num(sk); i < max; i++) {
+    void *value = ossl.ossl_OPENSSL_sk_value(sk, i);
+    if (!call_func(func, value, data)) {
+      if (new_size != i) {
+        ossl.ossl_OPENSSL_sk_set(sk, new_size, value);
+      }
+      new_size++;
+    }
+  }
+
+  if (new_size < old_size) {
+    while (old_size-- > new_size) {
+      ossl.ossl_OPENSSL_sk_pop(sk);
+    }
+    if (was_sorted) {
+      ossl.ossl_OPENSSL_sk_sort(sk);
+    }
+  }
+}
+
+/*
  * BoringSSL
  * =========
  * sk_dup performs a shallow copy of a stack and returns the new stack, or NULL
@@ -81,6 +125,9 @@ void *OPENSSL_sk_delete_ptr(_STACK *sk, const void *p) {
  * stack is NULL. Note the pointers in the copy are identical to the original.
  */
 _STACK *OPENSSL_sk_dup(const _STACK *sk) {
+  if (sk == NULL) {
+    return NULL; // This mimics BoringSSL
+  }
   return ossl.ossl_OPENSSL_sk_dup(sk);
 }
 
